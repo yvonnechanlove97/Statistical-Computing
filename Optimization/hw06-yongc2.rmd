@@ -1,0 +1,334 @@
+---
+title: 'Optimization'
+author: "YONG CHEN yongc2"
+date: "December 1, 2018"
+output:
+  html_document:
+    theme: readable
+    toc: yes
+  pdf_document:
+    toc: yes
+---
+
+
+```{r setup, echo = FALSE, message = FALSE, warning = FALSE}
+options(scipen = 1, digits = 4, width = 80)
+```
+
+## Exercise 1
+**Maximum Likelihood Estimator**
+In the exercise parts that follow, you must show derivation by hand(typed up in latex from within RMarkdown), include code and plots where appropriate. Also, do compare your results from code with those you got by hand.
+
+Suppose that $X$ is a discrete random variable with
+
+- $\mathbb{P}(X= 0) = \displaystyle\frac{1}{4} \theta$;
+- $\mathbb{P}(X= 1) = \displaystyle\frac{3}{4} \theta$;
+- $\mathbb{P}(X= 2) = \displaystyle\frac{1}{4} (1-\theta)$;
+- $\mathbb{P}(X= 3) = \displaystyle\frac{3}{4} (1-\theta)$;
+
+where $0 \le \theta \le 1$ is a parameter.  The following 10 independent observations were taken from such a distribution:  $(3,0,2,1,3,2,1,0,2,1)$.
+
+**(a)** What is the likelihood function $L(\theta$) for the sample $(3,0,2,1,3,2,1,0,2,1)$? 
+<br>
+$\frac{3^5}{4^{10}} \theta^{5} (1-\theta)^5$  
+
+**(b)** What is the log-likelihood function$l(\theta$) for the sample $(3,0,2,1,3,2,1,0,2,1)$?  
+<br>
+$log \frac{3^5}{4^{10}}+5log\theta+5log(1-\theta)$  
+
+**(c)** What is the maximum log-likelihood estimate of $\theta$? _(Hint: Recall the `optimize` function in R.)_  
+
+$\frac{dl(\theta)}{d\theta}=\frac{5}{\theta}-\frac{5}{1-{\theta}}=0$  
+
+$\hat{\theta}=0.5$
+```{r,eval=TRUE, echo=TRUE, include=TRUE}
+f=function(x){log(3^5/4^10)+5*log(x)+5*log(1-x)}
+x=seq(0.01,0.99,length=1000)
+plot(x,f(x),type="l")
+optimize(f,lower=0,upper=1,maximum = TRUE)
+```
+## Exercise 2
+**Maximum Likelihood Estimator in Logistic Regression**
+Suppose we have data in pairs $(x_{i},y_{i})$ for $i=1,2,...,25$.
+Conditional on $x_{i}$, $y_{i}$ is Bernoulli with success probability
+
+$$
+p_{i}=P[y_{i}=1|x_{i}]=exp(\beta_{0}+\beta_{1}x_{i})/(1+exp(\beta_{0}+\beta_{1}x_{i}))
+$$
+
+\noindent The aim is to compute the maximum likelihood estimate $\hat{{\bf{\beta}}}$ of the parameter vector ${\bf{\beta}}=(\beta_{0},\beta_{1})^{T}$.
+
+The log-likelihood is
+
+$$
+\ell({\bf{\beta}})=\sum_{i=1}^{n}[y_{i}log(p_{i})+(1-y_{i})log(1-p_{i})]
+$$
+
+ 
+**(a)** Use the function ``optim()``to compute $\hat{{\bf{\beta}}}$ using initial value (.25,.75).
+```{r,eval=TRUE, echo=TRUE, include=TRUE}
+x = c(1.34, -1.38, -0.19, -0.44, 1.90, -0.80, 0.91, 0.26, 1.37, -1.62, -0.96, 1.90, 0.99, 1.96, -1.57, 1.51, -1.61, -1.02, -0.92, -1.87,  1.73, -1.23, -1.24,  0.22, 1.42)
+y = c(1, 0, 0, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0)
+LL=function(b){
+  p=exp(b[1]+b[2]*x)/(1+exp(b[1]+b[2]*x))
+  return(sum(y*log(p)+(1-y)*log(1-p)))
+}
+optim(par=c(0.25,0.75),LL,control = list(fnscale=-1))
+```
+**(b)** Again, starting with (.25,.75) find the next value when using the Newton-Raphson algorithm.
+```{r,eval=TRUE, echo=TRUE, include=TRUE}
+ini=c(0.25,0.75)
+LB=LL(ini) #log-likelihood
+p=exp(ini[1]+ini[2]*x)/(1+exp(ini[1]+ini[2]*x))
+dLdb=sum((y/p)-((1-y)/1-p)) # first derivative of beta
+beta1=ini-LB/dLdb
+beta1 #next value
+``` 
+**(c)**  Assume that $\beta_{0}=0$, and plot the likelihood function $L(\beta_{1})$ as a function of $\beta_{1}$.
+```{r,eval=TRUE, echo=TRUE, include=TRUE}
+b1=seq(-2,5,length=10000)
+p=matrix(0,10000,25)
+for (i in 1:length(b1)){
+  for (j in 1:length(x)) {
+    p[i,j]=exp(b1[i]*x[j])/(1+exp(b1[i]*x[j]))
+  }
+}
+Lb1=matrix(0,10000,1)
+Lb2=numeric(10000)
+for (i in 1:length(b1)){
+  Lb1[i]=prod(p[i,]^y*((1-p[i,])^(1-y))) #likelihood
+}
+
+plot(b1,Lb1,type = "l") 
+``` 
+**(d)** Again, assume $\beta_{0}=0$ and compute $\hat{\beta}_{1}$ using ``uniroot()``, a grid search, and by the Newton-Raphson algorithm.
+ You can use the plot in part (c) to find a good initial value.
+```{r,eval=TRUE, echo=TRUE, include=TRUE}
+#uniroot
+LB=function(b1){
+  sum(x*y-x*exp(b1*x)/(1+exp(b1*x)))
+}
+uniroot(LB,lower=0.3,upper=2) 
+#grid search
+#likelihood function
+LL=function(b1){
+  p=exp(b1*x)/(1+exp(b1*x))
+  return(-sum(y*log(p)+(1-y)*log(1-p)))
+}
+library(NMOF)
+#since this function is for searching minimum, I add a negative to the likelihood function to make it valid
+gridSearch(LL,lower=0.3,upper=2)$minlevels
+#Newton
+b_ini=0.25 #initial valuw
+NewtonRaph=function(f,tol=1e-7,x0,N){
+  h=1e-7 
+  i=1 
+  p=numeric(N) 
+  while(i <=N){ 
+    dfdx=(f(x0+h)-f(x0))/h 
+    x1=(x0-(f(x0)/dfdx)) 
+    p[i]=x1 
+    i=i+1 
+    if(abs(x1-x0)<tol)break 
+    x0=x1 
+  }
+  return(p[1:(i-1)]) 
+}
+NewtonRaph(LB,x0=b_ini,N=100)
+```
+
+## 8.1
+```{r,eval=TRUE, echo=TRUE, include=TRUE}
+library(RVAideMemoire)
+data(chickwts)
+x=c(158,171,193,199,230,243,248,248, 250,267,271,316,327,329)
+y=c(141,148,169,181,203,213,229, 244,257,260,271,309)
+
+CvM.test(x,y,conf.level=0.95,sim="permutation")
+```
+since the p-value is too large, we need to accept the null hypothesis.  
+
+## 9.2
+```{r,eval=TRUE, echo=TRUE, include=TRUE}
+f <- function(x, sigma) { 
+  if (any(x < 0)) return (0) 
+  stopifnot(sigma > 0) 
+  return((x / sigma^2) * exp(-x^2 / (2*sigma^2))) 
+} 
+m <- 10000 
+sigma <- 2 
+x <- numeric(m) 
+x[1] <- rgamma(1,1,1) 
+k <- 0 
+u <- runif(m)
+for (i in 2:m) { 
+  xt <- x[i-1] 
+  y <- rgamma(1,xt,1) 
+  num <- f(y, sigma) * dgamma(xt,shape=y, rate=1) 
+  den <- f(xt, sigma) * dgamma(y, shape=xt, rate=1) 
+  if (u[i] <= num/den) x[i] <- y else { 
+    x[i] <- xt 
+  k <- k+1 #y is rejected 
+  } 
+}
+print(k) #number of rejected sample
+k/m #rejected rate
+
+```
+
+## 9.4
+```{r,eval=TRUE, echo=TRUE, include=TRUE}
+library(rmutil)
+rw.Metropolis=function(sigma,x0,N){ 
+  x=numeric(N) 
+  x[1]=x0 
+  u=runif(N) 
+  k=0 #number of accepted proposals 
+  for(i in 2:N){ 
+    y=rnorm(1,x[i-1],sigma) #increment?x[i-1]+rnorm(1,0,sigma)
+    ratio=dlaplace(y,0,1)/dlaplace(x[i-1],0,1) 
+    accept=u[i]<=ratio 
+    x[i]=y*accept+x[i-1]*(1-accept) 
+    k=k+accept 
+    } 
+  return(list(x=x,k=k)) 
+  }
+
+sigma=c(0.05,0.5,2,16)
+x0=rlaplace(1,0,1)
+N=2000
+
+rw1=rw.Metropolis(sigma[1],x0,N)
+rw2=rw.Metropolis(sigma[2],x0,N)
+rw3=rw.Metropolis(sigma[3],x0,N)
+rw4=rw.Metropolis(sigma[4],x0,N)
+
+index <- 200:2000 
+par(mfrow=c(2,2)) 
+plot(index, rw1$x[index], type="l", main="", ylab="x") 
+plot(index, rw2$x[index], type="l", main="", ylab="x") 
+plot(index, rw3$x[index], type="l", main="", ylab="x") 
+plot(index, rw4$x[index], type="l", main="", ylab="x")
+
+print(c(rw1$k/N,rw2$k/N,rw3$k/N,rw4$k/N)) #acceptance rate
+
+```
+From the result we can see that when the variance is too small, the rate is high but the chain is not accurate.When sigma=2, the generated chain is the most efficient with the perfect variance
+
+## 9.7
+```{r,eval=TRUE, echo=TRUE, include=TRUE}
+N=5000
+X=matrix(0,N,2)
+sd1=1
+sd2=1
+rho=0.9
+s1=sqrt(1-rho^2)*sd1
+s2=sqrt(1-rho^2)*sd2
+X[1,]=c(0,0)
+for (i in 2:N){
+  y=X[i-1,2]
+  m1=0+rho*(y)*sd1/sd2
+  X[i,1]=rnorm(1,m1,s1)
+  x1=X[i,1]
+  m2=0+rho*(x1)*sd2/sd1
+  X[i,2]=rnorm(1,m2,s2)
+}
+
+#discard burn-in sample
+plot(X[1001:5000,],main="generated sample",xlab="x",ylab="x")
+
+mod=lm(X[1001:5000,2]~X[1001:5000,1])
+par(mfrow=c(2,2))
+plot(mod)
+```
+Q-Q plot shows residuals follow normal distribution, and residuals-fitted plot shows constant variance.  
+
+##9.8
+```{r,eval=TRUE, echo=TRUE, include=TRUE}
+library(stats)
+n=10
+a=2
+b=6
+f = function (x, y) {
+  # general binomial coefficient
+  gamma(n + 1) / (gamma(x + 1) * gamma(n - x + 1))  * y^(x + a - 1) * (1 - y)^(n - x + b - 1)
+}
+N=10000
+X= matrix(0,N,2)
+for (i in 2:N){
+  y=X[i-1,2]
+  X[i,1]=rbinom(1,n,y)
+  X[i,2]=rbeta(1,X[i,1]+a,n-X[i,1]+b)
+}
+
+plot(X, cex = 0.1)
+```
+
+##9.10
+```{r,eval=TRUE, echo=TRUE, include=TRUE}
+# Rayleigh density f
+f <- function(x, sigma) { 
+  if (any(x < 0)) return (0) 
+  stopifnot(sigma > 0) 
+  return((x / sigma^2) * exp(-x^2 / (2*sigma^2))) 
+  }  
+#generate chain
+chain=function(sigma,m,x1){
+  x <- rep(0,m) 
+  x[1] <- x1 
+  u <- runif(m)
+  for (i in 2:m) { 
+    xt <- x[i-1] 
+    y <- rchisq(1, df = xt) 
+    num <- f(y, sigma) * dchisq(xt, df = y) 
+    den <- f(xt, sigma) * dchisq(y, df = xt) 
+    if (u[i] <= num/den) {x[i] <- y} 
+    else{x[i] <- xt}
+    }
+    return(x)
+} 
+#Gelman Rubin function
+Gelman.Rubin <- function(psi) { 
+  # psi[i,j] is the statistic psi(X[i,1:j]) 
+  # for chain in i-th row of X 
+  psi <- as.matrix(psi) 
+  n <- ncol(psi) 
+  k <- nrow(psi)
+  psi.means <- rowMeans(psi) #row means 
+  B <- n * var(psi.means) #between variance est. 
+  psi.w <- apply(psi, 1, "var") #within variances 
+  W <- mean(psi.w) #within est. 
+  v.hat <- W*(n-1)/n + (B/n) #upper variance est. 
+  r.hat <- v.hat / W #G-R statistic 
+  return(r.hat) 
+  }
+m <- 1000 #length of chain
+sigma <- 4  #parmeter of proposal distribution
+r.hat=10
+while (r.hat>=1.2) {
+  k=4
+  x0=c(rchisq(k, df=1))
+  X=matrix(0,k,m)
+  for (i in 1:k){
+    X[i,]=chain(sigma,m,x0[i])
+  }
+  psi=t(apply(X,1,cumsum))
+  for (j in 1:nrow(psi)){
+    psi[j,]=psi[j,]/(1:ncol(psi))
+  }
+  r.hat=Gelman.Rubin(psi)
+  m=m+1
+}
+print(m)
+
+
+library(coda)
+x1=as.mcmc(X[1,])
+x2=as.mcmc(X[2,])
+x3=as.mcmc(X[3,])
+x4=as.mcmc(X[4,])
+mc_X=apply(X, 1,as.mcmc)
+combi=mcmc.list(x1,x2,x3,x4)
+gelman.diag(combi)
+gelman.plot(combi)
+```
