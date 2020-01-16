@@ -1,0 +1,188 @@
+---
+title: 'Jackknife and Bootstrap'
+author: "CHEN, YONG, yongc2" 
+date: "November 10,2018"
+output:
+  html_document:
+    theme: readable
+    toc: yes
+  pdf_document:
+    toc: yes
+---
+
+
+```{r setup, echo = FALSE, message = FALSE, warning = FALSE}
+options(scipen = 1, digits = 4, width = 80)
+```
+
+
+## Exercise 1
+**Bootstrap.**
+  
+```{r,eval=TRUE, echo=TRUE, include=TRUE}
+n=100
+B=10000
+x=rbeta(100,3,2)
+thetahat=mean(x)
+thetahatboot=numeric(B)
+
+for (b in 1:B) {
+  xb=sample(x,n,replace = TRUE)
+  thetahatboot[b]=mean(xb)
+}
+sd(x) #beta distribution sample standard error
+sd(thetahatboot) #estimate the standard error of this mean
+thetahatboot=sort(thetahatboot)
+thetahatboot[c(0.025*B,0.975*B)] 
+#95\% confidence interval
+```
+We can obtain a bootstrap estimate of the standard error by simply computing the standard deviation of our bootstrap replicates. They should be equal or close to each other. In my experient, they are not close to each other. 
+
+## Exercise 2
+**Jackknife.**
+```{r,eval=TRUE, echo=TRUE, include=TRUE}
+jacknife_sd=function(x){
+  n=length(x)
+  thetahatjack=numeric(n)
+  for(i in 1:n){
+    thetahatjack[i]=sd(x[-i])
+  }
+  biasjack=(n-1)*(mean(thetahatjack)-sd(x)) #bias
+  sumsq=mean((thetahatjack-mean(thetahatjack))^2)
+  sejack=sqrt(n-1)*sqrt(sumsq) #standard error
+  return(sprintf("bias: %f  se:%f",biasjack,sejack))
+}
+
+n=1000
+x=rnorm(n,0,1)
+jacknife_sd(x)
+```
+
+## Exercise 3(7.1)
+```{r,eval=TRUE, echo=TRUE, include=TRUE}
+library(bootstrap)
+n=nrow(law)
+thetahatjack=numeric(n)
+for (j in 1:n){
+  thetahatjack[j]=cor(law$LSAT[-j],law$GPA[-j])
+}
+(n-1)*(mean(thetahatjack)-sd(x)) # bias
+sumsq=mean((thetahatjack-mean(thetahatjack))^2)
+sqrt(n-1)*sqrt(sumsq) #standard error 
+```
+
+## Exercise 4(7.2)
+```{r,eval=TRUE, echo=TRUE, include=TRUE}
+data(law)
+B=2000
+n=nrow(law)
+R=numeric(B)
+indices=matrix(0,B,n)
+for(b in 1:B){
+  i=sample(1:n,size=n,replace = TRUE)
+  LSAT=law$LSAT[i]
+  GPA=law$GPA[i]
+  R[b]=cor(LSAT,GPA)
+  indices[b,]=i
+}
+se.jack=numeric(n)
+for(i in 1:n){
+  keep=(1:B)[apply(indices,MARGIN = 1,FUN=function(k){!any(k==i)})]
+  se.jack[i]=sd(R[keep])
+}
+
+sd(R)#bootstrap estimate of the standard error
+sqrt((n-1) * mean((se.jack - mean(se.jack))^2))
+#standard error estimator jackknife-after-bootstrap  
+```
+## Exercise 5(7.5)
+```{r,eval=TRUE, echo=TRUE, include=TRUE}
+library(boot)
+data("aircondit")
+hours=aircondit$hours
+theta.boot= function(hours,i){
+  return(1/(length(hours[i])/sum(hours[i])))
+}
+boot.obj=boot(aircondit$hours,statistic = theta.boot,R=2000 )
+#compute 95% bootstrap standrad normal, basic, percentile, BCa CI, mean time of lambda
+print(boot.ci(boot.out = boot.obj,type=c("basic","norm","perc",'bca')))
+
+```
+## Exercise 6(7.6)
+```{r,eval=TRUE, echo=TRUE, include=TRUE}
+library(bootstrap)
+data("scor")
+pairs(scor) #the scatter plots for each pair of test scores
+cor(scor) #the sample correlation matrix
+n=nrow(scor)
+B=200
+R1=numeric(B)
+R2=numeric(B)
+R3=numeric(B)
+R4=numeric(B)
+attach(scor)
+for (b in 1:B){
+  i=sample(1:n, size=n, replace=TRUE)
+  R1[b]=cor(mec[i],vec[i])
+  R2[b]=cor(alg[i],ana[i])
+  R3[b]=cor(alg[i],sta[i])
+  R4[b]=cor(ana[i],sta[i])
+}
+#results
+sd(R1) 
+sd(R2)
+sd(R3)
+sd(R4)
+```
+## Exercise 7(7.7)
+```{r,eval=TRUE, echo=TRUE, include=TRUE}
+data(scor)
+x=scor
+sigma=cov(scor)
+eigenvalue=eigen(sigma,only.values=TRUE)$values
+theta=eigenvalue[1]/sum(eigenvalue)
+B=10000
+n=nrow(scor)
+boottheta=numeric(B)
+for(b in 1:B){
+  ind=sample(n,replace = TRUE)
+  xboot=scor[ind,]
+  booteigen=eigen(cov(xboot))$values
+  boottheta[b]=booteigen[1]/sum(booteigen)
+}
+mean(boottheta)-theta #bias 
+sd(boottheta) #standard error 
+```
+## Exercise 8(7.11)
+```{r,eval=TRUE, echo=TRUE, include=TRUE}
+library(DAAG)
+data("ironslag")
+attach(ironslag)
+n=length(magnetic)
+e1=e2=e3=e4=matrix(0,n,n)
+
+for (k in 1:(n-1)) {
+  for (j in (k+1):n) {
+    y=magnetic[c(-k,-j)]
+    x=chemical[c(-k,-j)]
+    J1=lm(y ~ x) 
+    yhat1=predict(J1,newdata=data.frame(x=chemical[c(k,j)]))
+    e1[k,j] = sqrt(sum((magnetic[c(k,j)]-yhat1)^2))
+    
+    J2 = lm(y ~ x + I(x ^ 2))
+    yhat2=predict(J2,newdata=data.frame(x=chemical[c(k,j)]))
+    e2[k,j] = sqrt(sum((magnetic[c(k,j)]-yhat2)^2))
+    
+    J3 = lm(log(y) ~ x)
+    yhat3=exp(predict(J3,newdata=data.frame(x=chemical[c(k,j)])))
+    e3[k,j] = sqrt(sum((magnetic[c(k,j)]-yhat3)^2))
+    
+    J4 = lm(log(y) ~ log(x))
+    yhat4=exp(predict(J4,newdata=data.frame(x=chemical[c(k,j)])))
+    e4[k,j] = sqrt(sum((magnetic[c(k,j)]-yhat4)^2))
+  }
+}
+c(mean(e1),mean(e2),mean(e3),mean(e4))
+
+
+```
