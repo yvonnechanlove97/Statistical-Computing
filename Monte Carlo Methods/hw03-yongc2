@@ -1,0 +1,229 @@
+---
+title: 'Monte Carlo Methods'
+author: "Chen, Yong, yongc2"
+date: "Saturday, October 6, 2018"
+output:
+  html_document:
+    theme: readable
+    toc: yes
+  pdf_document:
+    toc: yes
+---
+
+
+```{r setup, echo = FALSE, message = FALSE, warning = FALSE}
+options(scipen = 1, digits = 4, width = 80)
+```
+---------------------------------------
+
+---------------------------------------
+
+## Exercise 1 
+**Sampling via special transformation.**
+
+**(a)** Suppose we can only sample from $Unif[0,1]$. $k=3$. Design an algorithm to simulate $\chi^2$ distribution with $2k$ freedom via general transformation method.  
+<br>
+1. Generate $U_{1}...U_{k}$~ U(0,1);  
+2. Compute $X=-log(U)$;  
+3. result=$2\sum_{i=1}^{k}X_{i}$~$\chi^2_{2k}$  
+
+
+**(b)** Write an R code to generate sample following chi-squared distribution based on your designed algorithm in the previous part, with $n=2000$ sample size. Then, estimate expected value of this chi-squared distribution. Check if your estimates match the theoretically expected value of chi-squared distribution or not.
+```{r,eval=TRUE, echo=TRUE, include=TRUE}
+n=2000
+u=matrix(runif(n*3),n,3)
+y=2*rowSums(-log(u))  
+mean(y)  #estimated expected value
+mean(rchisq(n,df=6)) #theoretically expected value 
+```
+we can know that estimated expected value is very close to the theoretically expected value
+## Exercise 2
+**Monte Carlo Integration.** Use Monte Carlo integration to estimate
+
+**(a)** $$\int_{0}^{2} sin(x^2) dx$$ 
+```{r,eval=TRUE, echo=TRUE, include=TRUE}
+m=10000
+x=runif(m,0,2)
+gx=sin(x^2)
+mean(gx)*2
+```
+**(b)** $$\int_{0}^{1}\int_{0}^{1} e^{-(x+y)^3}(x+y) dx dy$$  
+```{r,eval=TRUE, echo=TRUE, include=TRUE}
+m=10000
+x=runif(m,0,1)
+y=runif(m,0,1)
+gx2=exp(1)^(-(x+y)^3)*(x+y)
+mean(gx2)*1
+```
+**(c)** $$\int_{0}^{5}\int_{0}^{2} e^{-(x+y)^3}(x+y) dx dy$$  
+```{r,eval=TRUE, echo=TRUE, include=TRUE}
+m=10000
+x=runif(m,0,2)
+y=runif(m,0,5)
+gx2=exp(1)^(-(x+y)^3)*(x+y)
+mean(gx2)*10
+```
+
+
+## Exercise 3:
+a) Implement this algorithm and generate 20000 random samples.
+b) Output a histogram of these samples and overlay the density of the original distribution.
+```{r,eval=TRUE, echo=TRUE, include=TRUE}
+randnorm=function(n){
+  fg=function(x){
+  (exp(-((x+1)^2)/2)+exp(-((x-1)^2)/2))*pi*(1+x^2)*(1/(2*sqrt(2*pi))) # indicates f(x)/g(x)
+}
+  M=fg(2) #when x=2, f(x)/g(x) reachs its maximum
+  k=0
+  j=0
+  z=rep(0,times=n)
+  while(k<n){
+    x=tan(pi*(runif(1)-0.5)) #cdf of cauchy distribulation
+    u=runif(1)
+    if(u<=fg(x)/M){
+      k=k+1
+      z[k]=x
+    }
+    j=j+1
+  }
+  return(z)
+}
+
+hist(randnorm(20000),freq=F,col="red",breaks=50,main='Y=0.5*N(-1,1)+0.5*N(1,1)')
+x=seq(-4,4,.1)
+curve(0.5*dnorm(x,-1,1)+0.5*dnorm(x,1,1),xlim=c(-4,4),add=TRUE) #density curve of the original distribulation
+```
+
+## Exercise 4
+**(a)** Use Monte Carlo integration with $k = 1000$ iterations to approximate the integral $ \int_0^1 e^x \; dx. $. Call this approximate value $I_1$.
+```{r,eval=TRUE, echo=TRUE, include=TRUE}
+k=1000
+u=runif(k,0,1)
+f=exp(u)
+I1=mean(f)
+I1
+```
+**(b)** Describe an inverse transform algorithm to sample from the proposed distribution $g(x)$.  
+we know that $g(x)=\frac{5}{2}x^{3/2}$, we can derive that cdf of g(x) $G(x)=x^{5/2}$ and compute inverse $x=u^{2/5}$  
+1. Generate U~U(0,1);  
+2. Plug U in and compute $x=u^{2/5}$.  
+
+**(c)** Implmement your algorithm to get 1000 samples from $g(x)$, $(X_1, X_2, \ldots, X_{1000})$.  
+```{r,eval=TRUE, echo=TRUE, include=TRUE}
+u=runif(1000,0,1)
+x=u^(2/5)
+```
+**(d)** Compute the quantity $I_2 = \frac{1}{1000} \sum_{i=1}^{1000} \frac{f(X_i)}{g(X_i)} $ for your sample from part (b). What is this quantity $I_2$ as estimate of? Compare it with $I_1$ from Part (a).
+
+```{r,eval=TRUE, echo=TRUE, include=TRUE}
+I2=mean(exp(x)/(2.5*x^(-1.5)))
+I2
+```
+$I_2=E \left[ \frac{f(X)}{g(X)} \right]$ where $f(x)=e^{x}$, is thethe estimator of $\int_0^1 e^x \; dx.$ by important sampling with important sample funciton $g(x)$, while $I_1$ is the estimator of $\int_0^1 e^x \; dx.$ by simple Monte Carlo.  
+
+## Exercise 5
+**Prediction of closing prices**
+1. Simulate a sample path of stock price $S(t)$ for 20 days and plot it with line type. (with R code)
+```{r}
+v=0.0009
+i=2
+k=20
+s=numeric(k+1)
+s[1]=20
+while (i<k+2) {
+  r=rnorm(1,0,v)
+  s[i]=exp(r+log(s[i-1]))
+  i=i+1
+}
+s=s[-1]
+s
+plot(s,xlab='days',ylab='stock price')
+lines(s)
+```
+2. Estimate the expected closing price at day $20$: $E(S(20))$ based on $100000$ sample path. Meanwhile, report its upper and lower 95th percentiles.  
+```{r}
+n=100000
+s20=numeric(n)
+price=function(){ #create a function computing S(20)
+  v=0.0009
+  i=2
+  k=20
+  s=numeric(k+1)
+  s[1]=20
+  while (i<k+2) {
+    r=rnorm(1,0,v) #generate sample from normal(o,v)
+    s[i]=exp(r+log(s[i-1])) #compute s(t)
+    i=i+1
+  } 
+  return(s[length(s)])
+}
+
+for(i in 1:n){
+  s20[i]=price()
+}
+mean(s20)
+quantile(s20,c(0.05,0.95))
+
+```
+
+## Exercise 6
+```{r,eval=TRUE, echo=TRUE, include=TRUE}
+u=runif(10000,0,pi/3)
+x_hat=mean(sin(u))*(pi/3)
+x=-cos(pi/3)+cos(0)
+x_hat #estimator
+x #true value
+abs(x_hat-x) #residual 
+```
+
+##Exercise 7
+```{r,eval=TRUE, echo=TRUE, include=TRUE}
+n=10000
+u=runif(n,0,0.5) #sample from Uniform(0,0.5)
+theta_hat1=mean(exp(-u))*0.5
+(0.5-0)^2*var(exp(-u))/n #variance
+
+r=rexp(n,1) #sample from Exp(1)
+theta_hat2=mean(r<0.5) #monte carlo
+var(r<0.5)/n #variance
+abs((0.5-0)^2*var(exp(-u))/n-var(r<0.5)/n)  #error
+```
+Samples from Uniform distribution has lower variance, because from interval 0-0.5, Exp(1) only contains portion of its distribution, therefore samples from Exponential distribution will be larger.  
+
+
+##Exercise 8
+```{r,eval=TRUE, echo=TRUE, include=TRUE}
+mybetacdf=function(x){
+  u=runif(10000,0,x)
+  g=30*(u^2)*(1-u)^2
+  cdf=mean(g)*x
+  return(cdf)
+}
+Fx=seq(0.1,0.9,0.1)
+result=numeric(length(Fx))
+for (i in 1:length(Fx)){
+  result[i]=mybetacdf(Fx[i])
+}
+result #Monte Carlo estimator
+pbeta(Fx,3,3) #true value
+```
+Compared the result and the true value, we can know they are very close to each other.  
+
+##Exercise 9 + Exercise 10
+Pick
+$f_1=\frac{e^{-x^2/2}}{\sqrt{2\pi}}I_{\{1,\infty\}}$  
+
+$f_2=e^{-x}I_{\{1,\infty\}}$
+
+```{r,eval=TRUE, echo=TRUE, include=TRUE}
+m=10000
+X=rnorm(m,0,1)
+g=function(x){x^2/sqrt(2*pi)*exp(-x^2/2)*(x > 1)}
+mean(g(X)/dnorm(X)*(X>1)) #f1 is pdf of Normal(0,1)
+
+
+Y=rexp(m,1)
+g=function(x){x^2/sqrt(2*pi)*exp(-x^2/2)*(x > 1)}
+mean(g(Y)/dexp(Y)*(Y>1)) #f2 is the pdf of standard exponential distribution
+```
+From above, we know that the variance of $f_2$ is smaller because it is closer to the true distribution
