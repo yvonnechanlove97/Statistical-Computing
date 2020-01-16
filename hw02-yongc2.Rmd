@@ -1,0 +1,262 @@
+---
+title: 'STAT 428: Homework 2: <br> Random Number Generation and Sampling'
+author: "CHEN YONG, yongc2"
+date: "Due Week 4 Saturday, September 22 by 11.59 PM on Compass"
+output:
+  html_document:
+    theme: readable
+    toc: yes
+  pdf_document:
+    toc: yes
+---
+
+
+```{r setup, echo = FALSE, message = FALSE, warning = FALSE}
+options(scipen = 1, digits = 4, width = 80)
+```
+---------------------------------------
+
+---------------------------------------
+
+## Exercise 1
+**R Syntax and class-typing.**
+
+**(a)** For each of the following commands, either explain why they should be errors, or explain the non-erroneous result.
+
+```
+vector1 <- c("3", "3", "8", "2", "4")
+vector1*2
+sort(vector1)
+sum(vector1)
+```
+1.non-error. Because the numbers are quoted as characters, vector1 is a character vector.  
+2.error. Characters cannot time a scaler.   
+3.non-error. The function sort can be used to sort vectors in order.  
+4.error. You cannot numeric calculation with characters, "a"+"b" cannot be "ab".                                        <br>                                            
+**(b)** For the next series of commands, either explain their results, or why they should produce errors.
+
+```
+vector2 <- c("5",7,12)
+vector2[2] + vector2[3]
+
+dataframe3 <- data.frame(z1=5,z2="cat",z3=1)
+dataframe3[1,1] + dataframe3[1,3]
+
+list4 <- list(z1="100", z2=25, z3="98", z4=126)
+list4[[1]]+list4[[2]]
+list4[[2]]+list4[[4]]
+list4[2]+list4[4]
+list4[2]$z2 + list4[4]$z4
+```
+1.error. Because "5" is a character, R will take the vector as character type and input others as characters.    
+2.error. The type of vector2 is character, so the elements in vector2 are all characters so they arenot addable.    
+3.non-error. You can have diffierent object types in diffirent elements in a dataframe.    
+4.non-error. The first and thrid element of dataframe3 are scaler, they are addable.  
+5.non-error. Each element in a list is like a drawer, you can put diffirent things into each one.  
+6.error. list4[[1]] is a character and list4[[2]] is a number.  
+7.non-error. List4[[2]] and list4[[4]] are both scalers, they can be addable.  
+8.error. There are two elements in each list4[i],i=1£º4 and they are not all scalers.  
+9.non-error. "list4[2]$z2"" stands for the value of the second element of list4 which is a scaler. Same for "list4[4] z4".  
+
+## Exercise 2
+**Working with functions and operators.**
+    
+**(a)** The colon operator will create a sequence of integers in order. It is a special case of the function `seq()`. Using the help command `?seq` to learn about the function, design an expression that will give you the sequence of numbers from 1 to 10000 in increments of 203. Design another that will give you a sequence between 1 and 10000 that is exactly 18 numbers in length.
+```{r}
+seq(1,10000,203)
+seq(1,10000,length.out=18)
+```
+**(b)** The function `rep()` repeats a vector some number of times. Explain the difference between `rep(1:4, times=4)` and `rep(1:4, each=4)`.  
+<br>
+`rep(1:4, times=4)`  means that from 1 to 4, take the whole sequence as a unit and repeat it for 4 times. `rep(1:4, each=4)` means that it takes each number as a unit and repeat each of them for 4 times.  
+<br>
+
+## Exercise 3
+Writing R functions.
+Write an `R` function that accepts a vector as an argument and returns the standard deviation of that vector. You may not use the pre-existing functions sd(), var(), or anything similar.
+```{r}
+standrad_deviation=function(vec){
+  a=matrix(0,length(vec),1)
+  for (i in 1:length(vec)){
+    a[i]=(vec[i]-mean(vec))^2
+  }
+  sd=sqrt(sum(a)/(length(vec)-1))
+  return(sd)
+}
+```
+## Exercise 4
+- **(a)** Write a program that simulates 10,000 Beta(2,4) random variables using both methods.
+Method1:
+```{r}
+n=10000
+k=0
+j=0
+M=0.1055
+y=numeric(n)
+while(k<n){
+  u=runif(1)
+  j=j+1
+  x=runif(1)
+  if((x*(1-x)^3)/(M*1)>u){
+    k=k+1
+    y[k]=x
+  }
+}
+```
+Method2:  
+```{r}
+n=10000
+k=0
+j=0
+M=0.2499
+y2=numeric(n)
+while(k<n){
+  u=runif(1)
+  j=j+1
+  x=mean(runif(2))
+  if((x*(1-x)^3)/(M*(2-abs(4*x-2)))>u){
+    k=k+1
+    y2[k]=x
+  }
+}
+```
+- **(b)** Compare the acceptance rates and decide which one is the better algorithm.  
+Method1
+```{r}
+Y=runif(n)
+for (i in 1:n){
+  Y[i]=Y[i]*(runif(1)<(Y[i]*(1-Y[i]^3)/M))
+}
+Y=Y[Y!=0]
+length(Y)/n
+
+```
+Method2
+```{r}
+Y2=runif(n)
+for (i in 1:n){
+  Y2[i]=Y2[i]*(runif(1)<(Y2[i]*(1-Y2[i]^3)/M*(2-abs(4*Y2[i]-2))))
+}
+Y2=Y2[Y2!=0]
+length(Y2)/n
+```
+Compared the acceptence rate of two methods, we know they method 1 is better.  
+- **(c)** Is it correct to use theoretical acceptance rate $\frac{1}{M}$. Why or why not?  
+Not correct, because here we know that M is less than 1, so 1/M will be larger than 1.  
+```{r}
+1/M
+```
+- **(c)** Graph histograms of your results.
+```{r}
+hist(Y,freq=F,col="red",breaks=50)
+yplot=seq(min(Y),max(Y),.1)
+lines(yplot,dbeta(yplot,2,4),lwd=2)
+hist(Y2,freq=F,breaks=50)
+yplot1=seq(min(Y2),max(Y2),.1)
+lines(yplot1,dbeta(yplot1,2,4),lwd=2)
+```
+
+- **(d)** Summarizes your findings.
+Keep the g(x) as simple as possible, if M is less than 1, than the theorical accceptance rate is not correct. 
+## Exercise 5
+- **(a)** Simulate 10000 pairs of random variables $(X_1, X_2)$, both from $Unif(-1,1)$.
+```{r}
+s=10000
+x1=runif(s,-1,1)
+x2=runif(s,-1,1)
+```
+- **(b)** Find the number of times that $(X_1^2 + X_2^2) \leq 1$ for your sample. Call this number `n`. 
+```{r}
+ab=s*((x1^2+x2^2)<=1)
+ab=ab[ab!=0]
+n=length(ab)
+n
+```
+- **(c)** Estimate $\pi$ by the number $4n/10000$. Check how close it is to the value given by `pi` in `R`.
+```{r}
+pi_h=4*n/10000
+pi-pi_h
+```
+- **(d)** Repeat this process 100 times to get a vector of estimates $\tilde{\pi}$.
+```{r}
+pi_h=matrix(0,100,1)
+for (i in 1:100){
+  s=10000
+  x1=runif(s,-1,1)
+  x2=runif(s,-1,1)
+  ab=s*(x1^2+x2^2<1)
+  ab=ab[ab!=0]
+  n=length(ab)
+  pi_h[i]= 4*n/10000
+}
+```
+- **(e)** Estimate the error in our approximation by calculating standard deviation of the vector $\tilde{\pi}$ divided by 10.
+```{r}
+sd(pi_h)/10
+```
+
+## Exercise 6
+Derive the probability inverse transformation $F^{-1}(U)$ and use the inverse transform method to simulate 1000 random samples from this distribution. Graph the density histogram of the sample.
+```{r}
+n=1000
+u=runif(n)
+fu1=sqrt(2*u)
+fu2=sqrt(4-2*u)+2
+hist(fu1,prob=TRUE,xlim=c(0,0.5))
+hist(fu2,prob=TRUE)
+```
+
+## Exercise 7
+```{r}
+u=runif(1000,-1,1)
+rv=numeric(1000)
+for (i in 1:1000){
+  rv[i]=ifelse(u[i]<0,-log(-2*u[i]),log(2*u[i]))
+}
+hist(rv)
+```
+## Exercise 8
+```{r}
+n=1000
+u=runif(n)
+x=sqrt(4/1-u)
+x[1]
+hist(x)
+```
+## Exercise 9
+```{r}
+n=1000
+mybeta=function(n,a,b){
+  u=rgamma(n,shape = a,rate=1)
+  v=rgamma(n,shape = b,rate=1)
+  x=u/(u+v)
+  return(x)
+}
+hist(mybeta(1000,3,2))
+x=seq(-2,2,length.out = 1000)
+lines(x,dbeta(x,3,2))
+plot(x,dbeta(x,3,2))
+```
+## Exercise 10
+generate 1000 rv
+```{r}
+myfe=function(n) {
+  fe=numeric(n)
+  for (i in 1:n){
+  u1=runif(1,-1,1)
+  u2=runif(1,-1,1)
+  u3=runif(1,-1,1)
+  if (abs(u3)>=abs(u2) & abs(u3)>=abs(u1)){
+    u=u2
+  }else {
+    u=u3
+  } 
+  fe[i]=3/4*(1-u^2)
+  }
+  return(fe)
+}
+hist(myfe(1000))
+```
+
+
+
