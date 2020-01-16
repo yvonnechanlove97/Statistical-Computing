@@ -1,0 +1,254 @@
+---
+title: 'Monte Carlo Methods in Inference'
+author: "CHEN YONG yongc2"
+date: "October 27, 2018"
+output:
+  html_document:
+    theme: readable
+    toc: yes
+  pdf_document:
+    toc: yes
+---
+
+
+```{r setup, echo = FALSE, message = FALSE, warning = FALSE}
+options(scipen = 1, digits = 4, width = 80)
+```
+
+
+## Exercise 1
+**Antithetic method.**
+Suppose we want to estimate the mean of the Weibull distribution with the following pdf
+$$
+f(x) = \frac{4}{5} \left(\frac{x}{5}\right)^3 e^{-(x/5)^4}, \quad
+0<x<\infty.
+$$
+
+1. Use the inverse CDF method to estimate the mean. (Sample size $n=1000$)
+```{r,eval=TRUE, echo=TRUE, include=TRUE}
+n=1000
+y=runif(n,0,1)
+x=(-5^4*log(1-y))^0.25
+mean(x)
+```
+2. Use an antithetic method to estimate the mean. (Sample size $n=1000$)
+```{r,eval=TRUE, echo=TRUE, include=TRUE}
+n=1000
+u=runif(n,0,1)
+f=function(x){(-5^4*log(1-x))^0.25}
+sum((f(u)+f(1-u))/2)/n #the mean
+```
+3. Compare the variance of these two estimates. Which one has smaller variance?
+```{r,eval=TRUE, echo=TRUE, include=TRUE}
+M=replicate(1000,expr={
+  y=runif(1000,0,1)
+  mean((-5^4*log(1-y))^0.25)
+})
+var(M)
+I=replicate(1000,expr={
+  u=runif(1000,0,1)
+  f=function(x){(-5^4*log(1-x))^0.25}
+  sum((f(u)+f(1-u))/2)/n
+})
+var(I)
+```
+The one with antithetic method has smaller variance.  
+
+## Exercise 2
+**Bayesian Statistics**
+1. Write down the posterior distribution of $\theta$, $g(\theta|X)$.
+$g(\theta|x)\varpropto \prod_{i=1}^{n}\theta e^{-\theta x}\cdot \theta^2 e^{-2\theta}$  
+
+2. Suppose $n=5$ and we observe that $x_1=0.5, x_2=1, x_3=0.1, x_4=1.7, x_5=1.4$. Please estimate the posterior mean of $\theta$ based on $1000$ simulated $\theta$ from its prior distribution.
+```{r,eval=TRUE, echo=TRUE, include=TRUE}
+r=rgamma(1000,3,2) #generate gamma random samples
+x=c(0.5,1,0.1,1.7,1.4)
+gx=function(t){prod(t*exp(-t*x))*t^2*exp(-2*t)} #posterior distribution
+pm=numeric(1000)
+for (i in 1:1000){
+  pm[i]=gx(r[i]) #plug in 
+}
+mean(pm) #compute simple mean
+```
+3. Suppose $n=5$ and we observe that $x_1=0.5, x_2=1, x_3=0.1, x_4=1.7, x_5=1.4$.  
+<br>
+a.  
+1.Randomly generate y~Gamma(3,2), U~U(0,1)  
+2.if U<= g(y|x)/0.0092/g(y),accept y as a sample  
+3.if not satisfied, start again from 1  
+    
+    b. Implement your acceptance-rejection sampling algorithm with R code. Plot the histogram of your generated sample and compare your sample mean with your estimated posterior mean obatained in Ex.2.2.
+```{r,eval=TRUE, echo=TRUE, include=TRUE}
+n=1000
+x=c(0.5,1,0.1,1.7,1.4)
+fg=function(t){prod(t*exp(-t*x))}
+M=fg(5/4.7) #when theta=5/4,7, g(theta|x)/g(x) reachs its maximum
+k=0
+j=0
+z=rep(0,times=n)
+while(k<n){
+  y=rgamma(1,3,2) #samples from instrumental distribution
+  u=runif(1)
+  j=j+1
+  if(u<=fg(y)/M){
+    k=k+1
+    z[k]=y
+  }
+}
+mean(z)
+hist(z,probability = T,main="histogram of A-R gemerate")
+```
+
+## Exercise 3
+**Exercise 6.6**
+```{r,eval=TRUE, echo=TRUE, include=TRUE}
+sk <- function(x) {
+  #computes the sample skewness coeff. 
+  xbar=mean(x) 
+  m3=mean((x - xbar)^3) 
+  m2=mean((x - xbar)^2) 
+  return( m3 / m2^1.5 ) 
+} 
+n=1000
+b=numeric(n)
+for (i in 1:n){
+  x=rnorm(1000,0,1)
+  b[i]=sk(x)
+  
+}
+q=c(0.025,0.05,0.95,0.975)
+q_hat=quantile(b,probs=q) #step 3
+q_hat
+sqrt(q*(1-q)/n/dnorm(q_hat)) #step4: standard error
+qnorm(q,0,sqrt(6/n)) #step5: compare with the theoretical values
+```
+
+## Exercise 4
+```{r,eval=TRUE, echo=TRUE, include=TRUE}
+mse=matrix(0,9,2)
+trimmed.mse=function(n,k,p){
+  #n:sample sizes;k:level;p:monte carlo sample sizes
+  tmean=numeric(p)
+  for (i in 1:p) {
+    x=rcauchy(n,0,1) #generate samples from standard cauchy
+    x=sort(x) #sort samples increasingly
+    tmean[i]=sum(x[(k+1):(n-k)])/(n-2*k)
+  }
+  mse=mean(tmean^2)
+  return(c(k,mse))
+}
+
+for (k in 1:9) {
+  mse[k,]=trimmed.mse(20,k,1000)
+}
+mse=data.frame(mse)
+names(mse)=c('k','MSE')
+mse
+```
+
+## Exercise 5
+```{r,eval=TRUE, echo=TRUE, include=TRUE}
+n=20 
+m=1000 
+mu0=500 
+sigma=100 
+mu=c(seq(350, 650, 10)) #alternatives 
+M=length(mu) 
+power=numeric(M) 
+for (i in 1:M) {
+  mu1=mu[i] 
+  pvalues <- replicate(m, expr = { 
+    #simulate under alternative mu1
+    x=rnorm(n, mean = mu1, sd = sigma) 
+    ttest=t.test(x, alternative = "two.sided", mu = mu0) 
+    ttest$p.value } ) 
+    power[i]=mean(pvalues <= .05) 
+}
+plot(mu,power)
+```
+
+## Exercise 6
+```{r,eval=TRUE, echo=TRUE, include=TRUE}
+n=c(seq(10,50,10)) #different sample sizes
+m=1000 
+mu0=500 
+sigma=100 
+mu=c(seq(450, 650, 10)) #alternatives 
+M=length(mu) 
+power=matrix(0,M,length(n))
+for (j in 1:length(n)){
+for (i in 1:M) {
+  mu1=mu[i] 
+  pvalues <- replicate(m, expr = { 
+    #simulate under alternative mu1
+    x=rnorm(n[j], mean = mu1, sd = sigma) 
+    ttest=t.test(x, alternative = "greater", mu = mu0) 
+    ttest$p.value } ) 
+  power[i,j]=mean(pvalues <= .05) 
+}}
+# plot
+plot(mu,power[,1],pch=1,col='blue',ylim=c(0,1),xlab='mu',ylab = 'value')
+par(new=TRUE)
+plot(mu,power[,2],pch=2, col='red',axes = FALSE,xlab = "", ylab = "",ylim=c(0,1))
+par(new=TRUE)
+plot(mu,power[,3],pch=3,col='green',axes = FALSE,xlab = "", ylab = "",ylim=c(0,1))
+par(new=TRUE)
+plot(mu,power[,4],pch=4,col='orange',axes = FALSE,xlab = "", ylab = "",ylim=c(0,1))
+par(new=TRUE)
+plot(mu,power[,5],pch=5,col='yellow',axes = FALSE,xlab = "", ylab = "",ylim=c(0,1))
+legend("bottomright",legend = c("10","20","30","40","50"), pch = c(1,2,3,4,5))
+```
+From the plot, we can see that the bigger the sample size, the larger the power is.  
+
+## Exercise 7
+```{r,eval=TRUE, echo=TRUE, include=TRUE}
+n=20 
+alpha=0.05 
+CL=replicate(1000, expr = {
+  x=rchisq(n,2) #samples from chisquare(2)
+  a=qt(alpha/2,n-1) * sd(x) / sqrt(n) 
+  c(mean(x)-a,mean(x)+a) }) #compute t-interval
+theta=2 #theoretical mean of chisqure(2)
+mean(CL[1,]>theta & CL[2,]<theta) 
+
+x <- rnorm(n, mean=0, sd=2) 
+UCL <- replicate(1000, expr = { 
+  x <- rnorm(n, mean = 0, sd = 2) 
+  (n-1) * var(x) / qchisq(alpha, df = n-1) })
+result=rbind(UCL,numeric(1000),CL) #compare interval result with first two rows are the one in example and the last two rows are my result
+result[,1:10] #for the large amount of intervals, here I only output 10 intervals for each example
+```
+We can clearly see that intervals from example 6.4 are a lot wider than t-intervals. 
+
+## Exercise 8
+```{r,eval=TRUE, echo=TRUE, include=TRUE}
+count5test <- function(x, y) { 
+  X=x - mean(x) 
+  Y=y - mean(y) 
+  outx=sum(X > max(Y)) + sum(X < min(Y)) 
+  outy=sum(Y > max(X)) + sum(Y < min(X)) 
+  # return 1 (reject) or 0 (do not reject H0) 
+  return(as.integer(max(c(outx, outy)) > 5)) 
+} # create count5test function
+sigma1=1 
+sigma2=1.5
+m=1000
+s_size=c(20,200,1000) #here small sample=20; medium=200, large=1000
+c5_power=numeric(3)
+f_power=numeric(3)
+f_I=numeric(m)
+for (i in 1:3) {
+  c5_power[i] = mean(replicate(m, expr = {
+    x = rnorm(s_size[i], 0, sigma1)
+    y = rnorm(s_size[i], 0, sigma2)
+    count5test(x, y)
+  }))
+  for (j in 1:m) {
+    x = rnorm(s_size[i], 0, sigma1)
+    y = rnorm(s_size[i], 0, sigma2)
+    f_I[j] = (var.test(x, y, alternative = "two.sided")$p.value < 0.055) #compute the number of rejecting H0
+  }
+  f_power[i]= mean(f_I)
+}
+rbind(c5_power,f_power)  #compare the powers of two tests
+```
